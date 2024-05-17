@@ -41,7 +41,7 @@ After the install follow these steps:
   - `cd dioscuri`
 
 - Setup python environment.
-  - `mamba env create -f pyenv.yml`
+  - `mamba env create`
   - `mamba activate dioscuri`
 
 - Setup julia environment.
