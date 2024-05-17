@@ -17,17 +17,10 @@ addprocs(4)
     include("Glioblas.jl")
 end
 
+# load the 33PD data
 df = CSV.read("../data/experiments/data_exp33PD.csv", DataFrame; header=1, skipto=3)
 
-# some columns contains tuple
-# this function unpacks them into separate column
-@everywhere function unpack_df(mdf)
-    unpack = ([:g1,:es,:g2] .=> eachcol(reduce(hcat, mdf[:,:stage_freq])'));
-    insertcols!(mdf, unpack...)
-    select!(mdf, Not(:stage_freq))
-    return mdf
-end
-
+# define model step
 @everywhere step_methylate_g1!(a, m) = begin
     Glioblas.replicate!(a, m)
     Glioblas.methylate!(a, m; when=["es"])
@@ -35,6 +28,7 @@ end
     Glioblas.apoptosis!(a, m)
 end
 
+# define an error function
 @everywhere function lsq_distance(u)
     DMSO_t0_cells = trunc(Int, (df[1, Symbol("02_DMSO alltime")] + df[1, Symbol("06_DMSO30 min removed")] + df[1, Symbol("10_DMSO 2h removal")])/3)
     TMZ_t0_cells = trunc(Int, (df[1, Symbol("04_500um alltime")] + df[1, Symbol("08_500um 30 min removal")] + df[1, Symbol("12_500um 2h removal")])/3)
@@ -121,12 +115,13 @@ end
     return distance
 end
 
+# bounds and initial guess
 lower = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
 upper = [40.0, 40.0, 100.0, 1.0, 1.0, 1.0]
 initial_x = [1.0, 40.0, 80.0, 1.0, 0.115, 1.0]
 # inner_optimizer = GradientDescent()
 
-# throw away compile run
+# throw away run for compilation
 optimize(
     lsq_distance,
     initial_x,
@@ -138,6 +133,7 @@ optimize(
     )
 )
 
+# optimize paramters with particle swarm
 result = try
     optimize(
         lsq_distance,
@@ -213,5 +209,6 @@ _, TMZ_mdf = paramscan(
 DMSO_est = rename!(combine(groupby(DMSO_mdf[:, [:step, :nagents]], :step), :nagents => mean), :nagents_mean => :DMSO)
 TMZ_est = rename!(combine(groupby(TMZ_mdf[:, [:step, :nagents]], :step), :nagents => mean), :nagents_mean => Symbol("500um"))
 
+# save the trajectories and paramters
 CSV.write("../data/inference/fitted_exp33PD.csv", innerjoin(DMSO_est, TMZ_est, on = :step));
 writedlm("../data/inference/parameters.csv", Optim.minimizer(result), ',');
