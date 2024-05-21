@@ -22,8 +22,8 @@ function init_model(;
     max_cells::Int64,
     stages::NTuple{T, Pair{String,Int64}} where T,
     t0_sampler::Union{Vector{Int64}, Function},
-    drug_dose::Float64, # Tm+ methylation rate
-    mgmt_conc::Float64, # Tm- demethylration rate
+    p_drug::Float64, # Tm+ methylation rate
+    p_mgmt::Float64, # Tm- demethylration rate
     max_t::Int64,
     rng::AbstractRNG
 )
@@ -37,11 +37,11 @@ function init_model(;
 
     @assert period .>= 0
 
-    @assert drug_dose >= 0.0
-    @assert drug_dose <= 1.0
+    @assert p_drug >= 0.0
+    @assert p_drug <= 1.0
 
-    @assert mgmt_conc >= 0.0
-    @assert mgmt_conc <= 1.0
+    @assert p_mgmt >= 0.0
+    @assert p_mgmt <= 1.0
 
     space = nothing
     properties = (;
@@ -49,8 +49,8 @@ function init_model(;
         max_cells,
         stages,
         period,
-        drug_dose,
-        mgmt_conc,
+        p_drug,
+        p_mgmt,
         max_t,
         rng
     )
@@ -111,11 +111,11 @@ end
 
 function methylate!(agent, model; when=["g1","es","g2"])
 
-    drug_dose = model.drug_dose
+    p_drug = model.p_drug
     rng = model.rng
 
     if (agent.methylated == false) && (agent.stage in when)
-        agent.methylated = rand(rng, Bernoulli(drug_dose))
+        agent.methylated = rand(rng, Bernoulli(p_drug))
     end
 
     return nothing
@@ -124,12 +124,12 @@ end
 
 function demethylate!(agent, model; when=["g1","es","g2"])
 
-    mgmt_conc = model.mgmt_conc
+    p_mgmt = model.p_mgmt
     rng = model.rng
 
     # mgmt demethylates cell
     if (agent.methylated == true) && (agent.stage in when)
-        if rand(rng, Bernoulli(mgmt_conc))
+        if rand(rng, Bernoulli(p_mgmt))
             agent.methylated = false
         end
     end

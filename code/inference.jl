@@ -76,7 +76,7 @@ end
     TMZ10_t0_cells = calc_ic(TMZ10)
     TMZ500_t0_cells = calc_ic(TMZ500)
 
-    l1, l2, L, drug_dose10, drug_dose500 = p
+    l1, l2, L, p_drug10, p_drug500 = p
     l1, l2, L = (x -> trunc(Int,x)).([l1,l2,L])
 
     DMSO_params = Dict(
@@ -84,8 +84,8 @@ end
         :max_cells => max_cells,
         :stages => ("g1"=>l1,"es"=>l2,"g2"=>L-l1-l2),
         :t0_sampler => Glioblas.powerdecay_sampler,
-        :drug_dose => 0.0,
-        :mgmt_conc => 0.0,
+        :p_drug => 0.0,
+        :p_mgmt => 0.0,
         :max_t => total_pts-1,
         :rng => (x -> Random.MersenneTwister(x)).(1:4)
     );
@@ -94,13 +94,13 @@ end
 
     TMZ10_params = DMSO_params
     TMZ10_params[:t0_cells] = TMZ10_t0_cells
-    TMZ10_params[:drug_dose] = drug_dose10
+    TMZ10_params[:p_drug] = p_drug10
 
     TMZ10_mdf = simulate(TMZ10_params)
 
     TMZ500_params = DMSO_params
     TMZ500_params[:t0_cells] = TMZ500_t0_cells
-    TMZ500_params[:drug_dose] = drug_dose500
+    TMZ500_params[:p_drug] = p_drug500
 
     TMZ500_mdf = simulate(TMZ500_params)
     return DMSO_mdf, TMZ10_mdf, TMZ500_mdf
@@ -152,7 +152,7 @@ end
 
 #%% --- Optimization ---
 # bounds and initial guess
-# l1, l2, L, drug_dose10, drug_dose500
+# l1, l2, L, p_drug10, p_drug500
 lower = [0.0, 0.0, 20.0, 0.0, 0.0]
 upper = [50.0, 50.0, 100.0, 1.0, 1.0]
 initial_p = [1.0, 40.0, 80.0, 0.02, 0.1]
