@@ -37,11 +37,11 @@ function init_model(;
 
     @assert period .>= 0
 
-    @assert p_drug >= 0.0
-    @assert p_drug <= 1.0
+    @assert p_drug >= 0.
+    @assert p_drug <= 1.
 
-    @assert p_mgmt >= 0.0
-    @assert p_mgmt <= 1.0
+    @assert p_mgmt >= 0.
+    @assert p_mgmt <= 1.
 
     space = nothing
     properties = (;

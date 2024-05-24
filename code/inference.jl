@@ -110,10 +110,10 @@ end
     return combine(groupby(mdf[:, [:step, :nagents]], :step), :nagents => mean)[:, :nagents_mean]
 end
 
-@everywhere function length_hack(est)
+@everywhere function length_hack(est::Vector)
     l = length(est)
-
-    return [est; fill(max_cells, total_pts - l)]
+    l < total_pts ? nothing : return est
+    return [est; fill(est[end], total_pts-l)]
 end
 
 @everywhere function lsq_distance(treatment, estimate)
@@ -125,16 +125,15 @@ end
     return distance
 end
 
-
 # define an error function
 @everywhere function objective(p)
+    (p[4] >= 0.) ? nothing : return Inf
+    (p[5] >= 0.) ? nothing : return Inf
     DMSO_mdf, TMZ10_mdf, TMZ500_mdf = experiment(p)
 
     DMSO_est, TMZ10_est, TMZ500_est = mean_trajectory.([DMSO_mdf, TMZ10_mdf, TMZ500_mdf])
 
     # hack for parameters with early terminating trajectories
-    # this will not matter at the end, there will be abrupt jump to max_cell
-    # and these parameters will not be selected
     DMSO_est, TMZ10_est, TMZ500_est = length_hack.([DMSO_est, TMZ10_est, TMZ500_est])
 
     # normalizing leads to better optimization
@@ -148,32 +147,31 @@ end
     return distance
 end
 
+function clean_mdf(mdf, name)
+    return rename!(combine(groupby(mdf[:, [:step, :nagents]], :step), :nagents => mean), :nagents_mean => name)
+end
+
+function length_hack(est::DataFrame)
+    l = nrow(est)
+    l < total_pts ? nothing : return est
+    tail = DataFrame(Dict(:step => l:total_pts-1, propertynames(est)[2] => fill(est[end, 2], total_pts-l)))
+    return append!(est, tail)
+end
+
 #%% --- Optimization ---
 # bounds and initial guess
 # l1, l2, L, p_drug10, p_drug500
 lower = [0.0, 0.0, 20.0, 0.0, 0.0]
-upper = [50.0, 50.0, 100.0, 0.25, 0.5]
-initial_p = [3.0, 37.0, 80.0, 0.03, 0.15]
+upper = [50.0, 50.0, 100.0, 0.5, 1.0]
+initial_p = [3.0, 35.0, 81.0, 0.03, 0.122]
 # inner_optimizer = GradientDescent()
-
-# throw away run for compilation
-optimize(
-    objective,
-    initial_p,
-    ParticleSwarm(;lower,upper,n_particles=3),
-    Optim.Options(
-        show_trace = false,
-        show_every = 1,
-        time_limit = 2
-    )
-)
 
 # optimize paramters with particle swarm
 result = try
     optimize(
         objective,
         initial_p,
-        ParticleSwarm(;lower,upper,n_particles=50),
+        NelderMead(), #ParticleSwarm(;lower,upper,n_particles=50),
         Optim.Options(
             show_trace = true,
             show_every = 25,
@@ -188,15 +186,11 @@ end
 
 #%% --- Export ---
 # run the model with inferred parameter to get the trajectory
-DMSO_mdf, TMZ10_mdf, TMZ500_mdf = experiment(Optim.minimizer(result))
+DMSO_mdf, TMZ10_mdf, TMZ500_mdf = experiment(result.minimizer)
 
-function clean_mdf(mdf, name)
-    return rename!(combine(groupby(mdf[:, [:step, :nagents]], :step), :nagents => mean), :nagents_mean => name)
-end
-
-DMSO_est = clean_mdf(DMSO_mdf, :DMSO)
-TMZ10_est = clean_mdf(TMZ10_mdf, :TMZ10)
-TMZ500_est = clean_mdf(TMZ500_mdf, :TMZ500)
+DMSO_est = length_hack(clean_mdf(DMSO_mdf, :DMSO))
+TMZ10_est = length_hack(clean_mdf(TMZ10_mdf, :TMZ10))
+TMZ500_est = length_hack(clean_mdf(TMZ500_mdf, :TMZ500))
 
 # save the trajectories and paramters
 CSV.write("../data/inference/fitted_exp33PD.csv", innerjoin(DMSO_est, TMZ10_est, TMZ500_est; on = :step));
