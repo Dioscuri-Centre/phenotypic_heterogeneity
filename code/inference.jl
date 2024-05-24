@@ -87,7 +87,7 @@ end
         :p_drug => 0.0,
         :p_mgmt => 0.0,
         :max_t => total_pts-1,
-        :rng => (x -> Random.MersenneTwister(x)).(1:4)
+        :rng => (x -> Random.MersenneTwister(x)).(2:5)
     );
 
     DMSO_mdf = simulate(DMSO_params)
@@ -116,14 +116,12 @@ end
     return [est; fill(max_cells, total_pts - l)]
 end
 
-@everywhere function lsq_distance(data, estimate)
+@everywhere function lsq_distance(treatment, estimate)
     distance = 0.0
-    for col in data
-        truth = df[:, col]
-        # normalize to match with estimates
-        truth = truth / truth[11]
-        distance += sum(((estimate .- truth) ./ truth) .^ 2.0)
-    end
+    truth = mean(eachcol(df[:, treatment]))
+    # normalize to match with estimates
+    truth = truth / truth[11]
+    distance += sum(((estimate .- truth) ./ truth) .^ 2.0)
     return distance
 end
 
@@ -154,8 +152,8 @@ end
 # bounds and initial guess
 # l1, l2, L, p_drug10, p_drug500
 lower = [0.0, 0.0, 20.0, 0.0, 0.0]
-upper = [50.0, 50.0, 100.0, 1.0, 1.0]
-initial_p = [1.0, 40.0, 80.0, 0.02, 0.1]
+upper = [50.0, 50.0, 100.0, 0.25, 0.5]
+initial_p = [3.0, 37.0, 80.0, 0.03, 0.15]
 # inner_optimizer = GradientDescent()
 
 # throw away run for compilation
