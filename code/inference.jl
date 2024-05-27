@@ -127,8 +127,8 @@ end
 
 # define an error function
 @everywhere function objective(p)
-    (p[4] >= 0.) ? nothing : return Inf
-    (p[5] >= 0.) ? nothing : return Inf
+    (p[4] >= 0.) & (p[4] <= 1.) ? nothing : return Inf
+    (p[5] >= 0.) & (p[5] <= 1.) ? nothing : return Inf
     DMSO_mdf, TMZ10_mdf, TMZ500_mdf = experiment(p)
 
     DMSO_est, TMZ10_est, TMZ500_est = mean_trajectory.([DMSO_mdf, TMZ10_mdf, TMZ500_mdf])
@@ -163,7 +163,7 @@ end
 # l1, l2, L, p_drug10, p_drug500
 lower = [0.0, 0.0, 20.0, 0.0, 0.0]
 upper = [50.0, 50.0, 100.0, 0.5, 1.0]
-initial_p = [3.0, 35.0, 81.0, 0.03, 0.122]
+initial_p = [0.0, 30.0, 82.0, 0.047, 0.91]
 # inner_optimizer = GradientDescent()
 
 # optimize paramters with particle swarm
@@ -171,11 +171,11 @@ result = try
     optimize(
         objective,
         initial_p,
-        NelderMead(), #ParticleSwarm(;lower,upper,n_particles=50),
+        ParticleSwarm(;lower,upper,n_particles=25), #
         Optim.Options(
             show_trace = true,
             show_every = 25,
-            time_limit = 120
+            time_limit = 60
         )
     )
 catch e
@@ -183,6 +183,17 @@ catch e
 finally
     rmprocs(workers())
 end
+
+result = optimize(
+    objective,
+    result.minimizer,
+    NelderMead(), #
+    Optim.Options(
+        show_trace = true,
+        show_every = 25,
+        time_limit = 20
+    )
+)
 
 #%% --- Export ---
 # run the model with inferred parameter to get the trajectory
