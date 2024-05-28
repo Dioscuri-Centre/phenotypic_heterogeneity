@@ -71,17 +71,18 @@ def trackmate_track_to_detections(tree,root,imgs,out_bin,s=500):
         Arguments:
             - the lineage tree
             - the images''' 
-
+    from utils_micro_sam import get_sam_model
     units = root[1].attrib['spatialunits']
     assert units in ('micron','µm','um')
     img_settings = root[2][0].attrib
     um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
-    sam_checkpoint = "/home/idjafc/Code/segment-anything/models/sam_vit_h_4b8939.pth"
-    model_type = "vit_h"
-    device = "cuda"
-    sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
-    sam.to(device=device)
-    predictor = SamPredictor(sam)
+    #sam_checkpoint = "../ML_models/sam_vit_h_4b8939.pth"        
+    # model_type = "vit_h"
+    # device = "cuda"
+    # sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+    # sam.to(device=device)
+    #predictor = SamPredictor(sam)
+    predictor = get_sam_model("vit_l_lm")
     if os.path.isfile(out_bin):
         return open_dets(out_bin)
     
@@ -141,10 +142,12 @@ def extract_reg(insts,w,arr):
         # Take the center of the cell
         xc,yc = boxes.get_centers()[i].tolist()#.cpu().numpy():
         xc,yc = int(xc),int(yc)
-        regs.append(arr[yc-w//2:yc+w//2,xc-w//2:xc+w//2,])
+        ymin = max(yc-w//2,0)
+        xmin = max(xc-w//2,0)
+        regs.append(arr[ymin:yc+w//2,xmin:xc+w//2,])
     
     # We next pad the array
-    target_shape = np.array((w,w)) 
+    target_shape = np.array((w,w))
     for i,reg in enumerate(regs):
         #to_pad = np.maximum(target_shape-np.array(reg.shape),0)
         # right pad the array (doesn't really matter for now where to pad)
@@ -154,8 +157,13 @@ def extract_reg(insts,w,arr):
 
 def pad_if_necessary(arr,target_shape): 
     to_pad = np.maximum(target_shape-np.array(arr.shape),0)
+    if np.any(to_pad == np.array(target_shape)):
+        # we cannot pad one axis over its full length !
+        raise Exception("There's something fishy here")
     # right pad the array (doesn't really matter for now where to pad)
-    return np.pad(arr,[(0,d) for d in to_pad])
+    #print(arr.max(), np.pad(arr,[(0,d) for d in to_pad]).max())
+    #print('padding')
+    return np.pad(arr,[(0,d) for d in to_pad],constant_values=np.nan)
     
 
 def extract_reg_from_det(det,img,win_size=500):
@@ -179,7 +187,7 @@ def translate_polygonmask_cpy(polygons,x,y):
         ret[-1].append(obj_tr)
     return ret 
 
-def extract_reg_from_det_single_masks(det,img,img_bf,flatfield,win_size=500):
+def extract_reg_from_det_single_masks(det,img,img_bf,flatfield=None,win_size=500):
     insts = det.instances_all
     height,width = insts.image_size 
     polygonmasks = PolygonMasks(det.polys)
@@ -190,7 +198,7 @@ def extract_reg_from_det_single_masks(det,img,img_bf,flatfield,win_size=500):
         poly_to_crop = translate_polygonmask_cpy(poly_to_crop,-xc+win_size//2,-yc+win_size//2)
         bmask = BitMasks.from_polygon_masks(poly_to_crop,height=win_size,width=win_size)
         mask_reg = bmask.tensor.numpy().squeeze()
-        # # crop the mask and the image 
+        # crop the mask and the image 
         cell_crop = extract_reg(insts[i],win_size,img)[0]
         cell_bf_crop = extract_reg(insts[i],win_size,img_bf)[0]
         # Then create masked values
@@ -199,10 +207,12 @@ def extract_reg_from_det_single_masks(det,img,img_bf,flatfield,win_size=500):
         bg_reg = np.ma.masked_array(cell_crop,mask=mask_reg)
         #with warnings.catch_warnings():
             #warnings.simplefilter("ignore")
-        if flatfield:
-            fit_bg_reg = fit_poly_ndeg_try2(bg_reg,n=4,mask=cell_reg.mask)[0]
+        if flatfield is not None:
+            fit_bg_reg = extract_reg(insts[i],win_size,flatfield)[0]
         else:
-            fit_bg_reg = None
+            fit_bg_reg = fit_poly_ndeg_try2(bg_reg,n=4,mask=cell_reg.mask)[0]
+        if fit_bg_reg.max() == 0:
+            raise Exception('')
         yield cell_reg,bg_reg,fit_bg_reg,cell_bf_reg,poly_to_crop
         
 def load_from_pickle(fname,list_of_ids,out=None):
@@ -253,25 +263,26 @@ def old_process_det(fnames_template,lock,det,imgs=None,imgs_bf=None,crop=None,f=
 
 
 
-def process_det(det,img,img_bf,f,lock,fname=None,crop=None,flatfield=True):
-
-    if img is None:
-        img = imread(fnames_template)
-
+def process_det(det,img,img_bf,f,lock,fname=None,crop=None,flatfield=None):
     if crop is not None:
         assert type(crop) == slice
         img = img[crop]
         img_bf = img_bf[crop]
+        if flatfield:
+            flatfield = flatfield[crop]
     if type(img) == dask.array.Array:
         img = img.compute()
     if type(img_bf) == dask.array.Array:
         img_bf = img_bf.compute()
+    if type(flatfield) == dask.array.Array:
+        flatfield = flatfield.compute()
 
     #crop = img #[5687:5687+10920,3815:3815+11088] # for well 7 [3749:3749+11136,2784:2784+13088]
-    regs = list(extract_reg_from_det_single_masks(det,img,img_bf,flatfield))
-    node_ids = det.instances_all.node_id          
+    regs = list(extract_reg_from_det_single_masks(det,img,img_bf,flatfield=flatfield))
+    node_ids = det.instances_all.node_id
     with lock:
         for node_id,(cell,bg,fit_bg,crop_bf,poly) in zip(node_ids,regs):
+            #print(node_id, fit_bg.max())
             pickle.dump({'id':node_id,'crop':cell,'background':bg,'fit_background':fit_bg,'crop_bf':crop_bf,'poly':poly},f)
 
 
