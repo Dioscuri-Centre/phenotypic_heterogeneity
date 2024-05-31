@@ -1,5 +1,5 @@
 
-from detectron2.structures import PolygonMasks,BitMasks
+
 from detectron2.structures import polygons_to_bitmask
 from detectron2.structures.boxes import Boxes
 from detectron2.utils.visualizer import GenericMask
@@ -167,6 +167,7 @@ def pad_if_necessary(arr,target_shape):
     
 
 def extract_reg_from_det(det,img,win_size=500):
+    from detectron2.structures import PolygonMasks,BitMasks
     insts = det.instances_all 
     height,width = insts.image_size 
     polygonmasks = PolygonMasks(det.polys)
@@ -188,6 +189,7 @@ def translate_polygonmask_cpy(polygons,x,y):
     return ret 
 
 def extract_reg_from_det_single_masks(det,img,img_bf,flatfield=None,win_size=500):
+    from detectron2.structures import PolygonMasks,BitMasks
     insts = det.instances_all
     height,width = insts.image_size 
     polygonmasks = PolygonMasks(det.polys)
