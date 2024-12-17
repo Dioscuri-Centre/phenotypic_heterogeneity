@@ -354,8 +354,6 @@ def get_max_fluo_track(dat,fluo_by_node):
         fluo_max.append(np.nanmax(fluo))
     return np.array(fluo_max)
 
-# for historical reason I keep this alias
-get_fluo_track = get_prop_track
 
 def get_prop_track(dat,prop_by_node):
     prop_tracks = []
@@ -363,6 +361,10 @@ def get_prop_track(dat,prop_by_node):
         prop_track = [prop_by_node[node_id] for node_id in node_ids]
         prop_tracks.append(prop_track)
     return prop_tracks
+
+# for historical reason I keep this alias
+get_fluo_track = get_prop_track
+
 def get_area_by_node(dat,filter_small=-1):
     # construct list of points:
     area_by_node = {}
