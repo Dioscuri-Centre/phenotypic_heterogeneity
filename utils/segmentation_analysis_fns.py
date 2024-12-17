@@ -726,11 +726,29 @@ def parse_dat_from_nd2(files,labels=None,thrs=0.5,delta_time=None):
         
     df = pd.concat(res.values(),keys=res.keys(),axis=1)
     return df 
-    
+
+
+def parse_data_from_cellpose_bin(folder,labels,delta_time): 
+    res = {} 
+    for well,label in labels.items():
+        # load bin file
+        file = folder+f'well_{well}.bin'
+        
+        if not os.path.isfile(file):
+            continue
+        with open(file,'rb') as f:
+            print(file,'---->',label)
+            dat = pickle.load(f)
+            cnts = np.array([len(x) for x in dat['rois']]) 
+            time = pd.to_timedelta(np.array(dat['idx'])*delta_time,unit='ms')
+            idxs = np.argsort(dat['idx'])
+            res[label] = pd.DataFrame.from_dict({'time':time[idxs],'counts':cnts[idxs]})
+    df = pd.concat(res.values(),keys=res.keys(),axis=1)
+    return df
 
 # Plotting functions
 def plot_dat_from_nd2(df,norm=True):
-    for lab,dat in df.iteritems():
+    for lab,dat in df.items():
         counts = dat.counts_normalized if norm else dat.counts
         time = dat.time / np.timedelta64(1,'h')
         plt.plot(time,counts,label=lab)
@@ -738,11 +756,12 @@ def plot_dat_from_nd2(df,norm=True):
     plt.ylabel('relative counts' if norm else 'counts')
     plt.legend()
     
-def plot_df_plotly(counts_all_dir,roll=1,labs=[],relative=True,diff=False):
+def plot_df_plotly(counts_all_dir,roll=1,fig=None,labs=[],relative=True,diff=False,lineopts=dict()):
     from plotly.subplots import make_subplots
     n = max(len(labs),1)
     tags = counts_all_dir.columns.get_level_values(0).drop_duplicates()
-    fig = make_subplots(rows=1, cols=n)
+    if not fig:
+        fig = make_subplots(rows=1, cols=n)
 
     for well in tags:
         dat = counts_all_dir[well].copy()
@@ -755,8 +774,9 @@ def plot_df_plotly(counts_all_dir,roll=1,labs=[],relative=True,diff=False):
     
         if type(relative) is bool and relative is True: 
             y = y/y[0]
-        elif type(relative) == str :            
-            y = y/y[0]
+        elif type(relative) == str :
+            firstframe 
+            y = y/np.nanmin(y)
             ref = counts_all_dir[relative].copy()
             ref = ref.set_index('time')
             ref = ref.counts
@@ -769,14 +789,16 @@ def plot_df_plotly(counts_all_dir,roll=1,labs=[],relative=True,diff=False):
         # else: 
         #     continue
         from functools import partial
-
         if diff:
             grad = pd.Series(np.gradient(y),index=y.index)
             y.update(grad)
             #y['values'] = partial(lambda x: np.gradient(x.values,x.index))(y)
-        
-        fig.add_trace(go.Scatter(x=y.index/np.timedelta64(1,'h'),y=y,
-                    mode='lines', name=well,text=well),row=1,col=1)
+        x = y.index
+        if y.index.dtype.type == np.timedelta64:
+            x = y.index/np.timedelta64(1,'h')
+
+        fig.add_trace(go.Scatter(x=x,y=y,
+                    mode='lines', **lineopts,name=well,text=well),row=1,col=1)
     
     yaxis_title = ("relative "*bool(relative)) 
     yaxis_title += "counts" + (" slope"*diff) 

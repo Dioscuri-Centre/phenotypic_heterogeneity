@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import os
 from itertools import chain
 from ete3 import TreeStyle,NodeStyle
-
+from mastodon_reader import MastodonReader
 
 def cartesian(arrays, out=None):
     """
@@ -74,22 +74,69 @@ def load_tree(xml_path):
     print(f'time step: {dt} {time_unit}',f'pixel size: {um_per_px} um')
     return tree,root
 
-def track_to_coords(xml_path,remove_spurious=True,print_summary=True):
-    debug = True
-#    global time_unit
-    print(os.path.basename(xml_path))
-    tree,root = load_tree(xml_path)
-    # get the pixel size
-    units = root[1].attrib['spatialunits']
-    assert units in ('micron','µm','um')
+
+def load_tree_mastodon(xml_path):
+    tree =lineageTree(xml_path,file_type='mastodon')
+    #root = ET.parse(xml_path).getroot()
+    # root = {} # make a fake root 
+    # root[2][0]
+    # units = root[1].attrib['spatialunits']
+    #assert units in ('micron','µm','um')
     img_settings = root[2][0].attrib
-    # um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
-    dt = float(root[2][0].attrib['timeinterval'])
-    time_unit = root[1].attrib['timeunits']
+    um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
+    # dt = float(root[2][0].attrib['timeinterval'])
+    # time_unit = root[1].attrib['timeunits']
+    # print(f'time step: {dt} {time_unit}',f'pixel size: {um_per_px} um')
+    return tree,root
+
+def track_to_coords(xml_path,remove_spurious=True,print_summary=True,time_delta=None,unit=None,min_timepoints = 5,remove_short=False):
+    """convert a trackmate/mastodon file in a series of "tracks" (a branch of the tree)
+
+    Args:
+        xml_path (str): path to the file
+        remove_spurious (bool, optional): remove too short "tracks". Defaults to True.
+        print_summary (bool, optional): print a summary of the content of the file. Defaults to True.
+        time_delta (int, optional): time between frames in minutes. Defaults to None.
+        unit (int, optional): spatial dimensions in micrometer. Defaults to None.
+    """    
+    debug = False
+#    global time_unit
+    if xml_path.endswith('.xml'):
+        print(os.path.basename(xml_path))
+        tree,root = load_tree(xml_path)
+        # get the pixel size
+        units = root[1].attrib['spatialunits']
+        assert units in ('micrometer','micron','µm','um')
+        img_settings = root[2][0].attrib
+        # um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
+        dt = float(root[2][0].attrib['timeinterval'])
+        time_unit = root[1].attrib['timeunits']
+    if xml_path.endswith('.mastodon'):
+        meta = MastodonReader(xml_path).read_metadata()
+        units = meta['space unit']
+        time_unit = meta['time unit']
+        if not unit:
+            assert units in ('micron','micrometer','µm','um'),print(units)
+        if not time_delta:
+            assert time_unit in ('min', 'minutes') 
+        tree =lineageTree(xml_path,file_type='mastodon')
+
+    # rescale time to minutes
     if time_unit == 'sec':
         dt/=60
     elif time_unit in ('h','hour','hours'):
         dt*=60
+    elif time_unit in ('min','minutes'):
+        pass
+    else:
+        dt=time_delta
+
+    # rescale to microns
+    if unit: 
+        dx = unit
+    else:
+        dx = 1.0
+
     # remove spurious tracks (this includes removing the nodes etc, there's a bultin method for that
     if remove_spurious:
         suspicious_tracks = [ tr  for tr in tree.get_all_tracks() if len(tr) == 1]
@@ -109,15 +156,20 @@ def track_to_coords(xml_path,remove_spurious=True,print_summary=True):
         print(f'removed {len(spurious)} spurious tracks out of  {len(suspicious_tracks)} suspicious ones ')
          #need to manually delete,there's a bug in the library currently
         del tree._all_tracks 
+    
+    if remove_short:
+        for track in tree.get_all_tracks():
+            if len(track) < min_timepoints:
+                tree.remove_track(track)
+        del tree._all_tracks
     tracks = tree.get_all_tracks()
     node_id = [ [x for x in tr] for tr in tracks]
-    pos = [np.array([ tree.pos[x][:2] for x in tr ]) for tr in tracks  ]
+    pos = [np.array([ tree.pos[x][:2]*dx for x in tr ]) for tr in tracks  ]
     time = [ np.array([ tree.time[x]*dt for x in tr ]) for tr in tracks]
-    
     len_tracks = [len(tr) for tr in tracks]
-    min_timepoints = 5
+    
     num_small_tracks = sum(map(lambda x: x < min_timepoints,len_tracks))
-
+    
     print(f'#tracks: {len(tracks)}, ( {num_small_tracks} <  {min_timepoints} timepoints)',sep='\t')
     return (pos,time,node_id),tree
 
@@ -164,16 +216,16 @@ def get_max_speed(dat):
         speeds.append(max_speed)
     return np.array(speeds)
 
-def get_speed(dat):
-    speeds = []
-    for pos,time,node_ids in zip(*dat):
-        #sd = np.sqrt((pos[:,0] - pos[0,0])**2 +(pos[:,1]-pos[0,1])**2)
-        dr_vec = np.diff(pos,axis=0)
-        dr = np.sqrt(dr_vec[:,0]**2 + dr_vec[:,1]**2)
-        speed = dr/np.diff(time)
-        #avg_speed = np.average(speed,axis=0)
-        speeds.append(speed)
-    return np.array(speeds)
+# def get_speed(dat):
+#     speeds = []
+#     for pos,time,node_ids in zip(*dat):
+#         #sd = np.sqrt((pos[:,0] - pos[0,0])**2 +(pos[:,1]-pos[0,1])**2)
+#         dr_vec = np.diff(pos,axis=0)
+#         dr = np.sqrt(dr_vec[:,0]**2 + dr_vec[:,1]**2)
+#         speed = dr/np.diff(time)
+#         #avg_speed = np.average(speed,axis=0)
+#         speeds.append(speed)
+#     return np.array(speeds)
 
 def get_max_displacement(dat):
     max_distances = []
@@ -302,12 +354,28 @@ def get_max_fluo_track(dat,fluo_by_node):
         fluo_max.append(np.nanmax(fluo))
     return np.array(fluo_max)
 
-def get_fluo_track(dat,fluo_by_node):
-    fluo_tracks = []
+# for historical reason I keep this alias
+get_fluo_track = get_prop_track
+
+def get_prop_track(dat,prop_by_node):
+    prop_tracks = []
     for time,pos,node_ids in zip(*dat):
-        fluo_track = [fluo_by_node[node_id] for node_id in node_ids]
-        fluo_tracks.append(fluo_track)
-    return fluo_tracks
+        prop_track = [prop_by_node[node_id] for node_id in node_ids]
+        prop_tracks.append(prop_track)
+    return prop_tracks
+def get_area_by_node(dat,filter_small=-1):
+    # construct list of points:
+    area_by_node = {}
+    all_nodes_ids = dat.keys()
+    for nid in all_nodes_ids:
+        area = np.sum(~dat[nid]['crop'].mask)
+        if area < filter_small:
+            area_by_node[nid] = np.nan
+        else:
+            area_by_node[nid] = area
+        
+    return area_by_node
+
 
 def get_valid_tracks(dat):
     valid = []

@@ -52,8 +52,8 @@ def alignImages(im1, im2):
     return im1Reg, h
 
 
-def dask_img(path):
+def dask_img(path,**kwargs):
     from tifffile import TiffFile
-    stack = TiffFile(path)    
+    stack = TiffFile(path,**kwargs)    
     return dask.array.from_zarr(stack.aszarr())
 

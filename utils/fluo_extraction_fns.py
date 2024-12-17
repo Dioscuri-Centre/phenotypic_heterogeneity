@@ -66,16 +66,17 @@ def plot_corrected_cells(img,bg,insts):
         ax2[i].set_facecolor('black')
 
 
-def trackmate_track_to_detections(tree,root,imgs,out_bin,s=500):
+def trackmate_track_to_detections(tree,root,imgs,out_bin,s=500,um_per_px=1):
     ''' converts a trackmate track to a detection object
         Arguments:
             - the lineage tree
             - the images''' 
     from utils_micro_sam import get_sam_model
-    units = root[1].attrib['spatialunits']
-    assert units in ('micron','µm','um')
-    img_settings = root[2][0].attrib
-    um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
+    if root is not None:
+        units = root[1].attrib['spatialunits']
+        assert units in ('micron','µm','um')
+        img_settings = root[2][0].attrib
+        um_per_px = np.array([img_settings['pixelwidth'],img_settings['pixelheight']],dtype=float)
     #sam_checkpoint = "../ML_models/sam_vit_h_4b8939.pth"        
     # model_type = "vit_h"
     # device = "cuda"
