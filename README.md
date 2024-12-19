@@ -1,17 +1,25 @@
 # Summary
 
-This respository contains data and code related to the project `Phenotypic heterogeneity in cancer chemotherapy`
+This respository contains data and code related to the paper [Phenotypic heterogeneity in cancer chemotherapy](https://www.biorxiv.org/content/10.1101/2024.05.28.596108v1)
 The project main experiments consist of micrograph time-lapses where of cells (potentially different cell lines) grown under different conditions (for instance using increasing drug doses) in 96-well plates.
 The output data was consists mostly in statistical observables obtained from those time-lapses. The code and minimal input data (mostly tracks and cell outline segmentation) required to reproduce this data and the plots is provided here.
 
 
 # Structure of the repository
 The data and code is organised as follows:
+- `figures`: contains all figures from the paper as fig_xx.svg
+  - `figures/plots`: contains all plots required to generate the figures
+- data pertains to all types of data required to generate the plots, this can be experimental or intermediate (e.g. processed), eg: 
+  - `data/type_of_experiment_1/intermediate_data_file{.xml|.csv|npy|etc}`
+  - `data/type_of_experiment_1/intermediate_data_file{.xml|.csv|npy|etc}`
+- `analysis` contains the one notebook per figure, eg: `analysis/fig1.ipynb` contains the code for fig 1.
+- `analysis/utils/`  routines that are called by each of the figure notebooks have been outsourced there
 
-## Tracking
+
+## Tracking analysis
 
 Manual tracking was performed using trackmate [1] on specific experiments and wells, with or without fluorescence imaging. Associated to the actual images a detailed analysis allows to obtain information on motility, correlation between speed, division or fluorescence and so forth.
-The notebook to be run is located in [the Tracking folder](Tracking/generate_figures.ipynb)
+The notebook to be run is located in [the analysis folder](analysis/generate_figures.ipynb)
 
 ## Segmentation
 
@@ -27,7 +35,9 @@ Currently running the processing pipeline depends on installing [detectron2](htt
 
 [4] Archit, Anwai, et al. Segment Anything for Microscopy. 22 Aug. 2023. Bioinformatics, https://doi.org/10.1101/2023.08.21.554208.
 
-# How to run the code
+
+
+## How to run the simulations
 This repository uses python and julia. We recommend [`miniforge`](https://github.com/conda-forge/miniforge) for python and [`juliaup`](https://github.com/JuliaLang/juliaup) for julia. Please find the installation instruction on their respective GitHub repo and documentation. You will need a software to view and run jupyter notebooks. We recommend [VS Code](https://code.visualstudio.com/docs/datascience/jupyter-notebooks).
 
 After the install follow these steps:
@@ -57,6 +67,6 @@ After the install follow these steps:
 
 - Now Jupyter notebooks `.ipynb` and julia scripts `.jl` can be run.
   - For example, to run julia inference script run following
-  - `cd code`
+  - `cd simulations`
   - `julia --project=.. inference.jl` (~5 min)
   - then run `analyze_exp33PD.ipynb` in VS Code.
