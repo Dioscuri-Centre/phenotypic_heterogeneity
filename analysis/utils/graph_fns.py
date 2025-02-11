@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import pandas as pd
 
 def get_nbranches_tree(trees):
     def get_nbranches(tree,n):
@@ -247,12 +248,16 @@ def get_branches_tree(graph,check_tree=True):
     if not check_tree:
         print("Warning, won't check if we return trees")
     def get_branches(tree,n):
-        succs = list(tree.successors(n)) 
-        allsuccs = [n]+succs
-        while len(succs) == 1:
-            n = succs[0]
+        #succs = list(tree.successors(n)) 
+        allsuccs = [n]#+succs
+        while True:
             succs = list(tree.successors(n))
-            allsuccs += succs
+            if len(succs) == 1:
+                n = succs[0]
+                allsuccs.append(n)    
+            else:
+                allsuccs.append(n)
+                break
         allsuccs = [allsuccs]
         if len(succs) > 1:
             for succ in succs:
