@@ -19,31 +19,31 @@ end
 
 #%% --- Definitions ---
 # load the 33PD data
-df = CSV.read("../data/experiments/data_exp33PD.csv", DataFrame; header=1, skipto=3)
+df = CSV.read("../data/experiments/growth_curves_57-58-59_swapcols_interp.csv", DataFrame; header=1, skipto=3)
 
-# we simulate until 1500 cells
-max_cells = 1500
+# we simulate until 21000 cells
+max_cells = 21000
 
 # experiments have 141 timepts
-total_pts = 141
+total_pts = 320
 
 # list of column names for a treatment
 DMSO = [
-    Symbol("02_DMSO alltime"),
-    Symbol("06_DMSO30 min removed"),
-    Symbol("10_DMSO 2h removal")
+    Symbol("E57_WT_Control_cyto3"),
+    Symbol("E58_WT_Control_cyto3"),
+    Symbol("E59_WT_Control_cyto3")
 ]
 
 TMZ10 = [
-    Symbol("03_10um alltime"),
-    Symbol("07_10um 30 min removed"),
-    Symbol("11_10um 2h removal")
+    Symbol("E57_WT_10uM_cyto3"),
+    Symbol("E58_WT_10uM_cyto3"),
+    Symbol("E59_WT_10uM_cyto3")
 ]
 
 TMZ500 = [
-    Symbol("04_500um alltime"),
-    Symbol("08_500um 30 min removal"),
-    Symbol("12_500um 2h removal")
+    Symbol("E57_WT_500uM_cyto3"),
+    Symbol("E58_WT_500uM_cyto3"),
+    Symbol("E59_WT_500uM_cyto3")
 ]
 
 # define model step
@@ -120,7 +120,7 @@ end
     distance = 0.0
     truth = mean(eachcol(df[:, treatment]))
     # normalize to match with estimates
-    truth = truth / truth[11]
+    truth = truth / truth[1]
     distance += sum(((estimate .- truth) ./ truth) .^ 2.0)
     return distance
 end
@@ -137,7 +137,7 @@ end
     DMSO_est, TMZ10_est, TMZ500_est = length_hack.([DMSO_est, TMZ10_est, TMZ500_est])
 
     # normalizing leads to better optimization
-    DMSO_est, TMZ10_est, TMZ500_est = (x -> x/x[11]).([DMSO_est, TMZ10_est, TMZ500_est])
+    DMSO_est, TMZ10_est, TMZ500_est = (x -> x/x[1]).([DMSO_est, TMZ10_est, TMZ500_est])
 
     distance = 0.0
     distance += lsq_distance(DMSO, DMSO_est)
@@ -161,9 +161,9 @@ end
 #%% --- Optimization ---
 # bounds and initial guess
 # l1, l2, L, p_drug10, p_drug500
-lower = [0.0, 0.0, 20.0, 0.0, 0.0]
-upper = [50.0, 50.0, 100.0, 0.5, 1.0]
-initial_p = [0.0, 30.0, 82.0, 0.047, 0.91]
+lower = [0.0, 0.0, 30.0, 0.0, 0.0]
+upper = [50.0, 50.0, 100.0, 1.0, 1.0]
+initial_p = [6.0, 01.0, 70.0, 0.047, 0.91]
 # inner_optimizer = GradientDescent()
 
 # optimize paramters with particle swarm
@@ -171,11 +171,11 @@ result = try
     optimize(
         objective,
         initial_p,
-        ParticleSwarm(;lower,upper,n_particles=25), #
+        ParticleSwarm(;lower,upper,n_particles=1000), #
         Optim.Options(
             show_trace = true,
             show_every = 25,
-            time_limit = 60
+            time_limit = 600
         )
     )
 catch e
@@ -191,7 +191,7 @@ result = optimize(
     Optim.Options(
         show_trace = true,
         show_every = 25,
-        time_limit = 20
+        time_limit = 600
     )
 )
 
@@ -204,5 +204,5 @@ TMZ10_est = length_hack(clean_mdf(TMZ10_mdf, :TMZ10))
 TMZ500_est = length_hack(clean_mdf(TMZ500_mdf, :TMZ500))
 
 # save the trajectories and paramters
-CSV.write("../data/inference/fitted_exp33PD.csv", innerjoin(DMSO_est, TMZ10_est, TMZ500_est; on = :step));
-writedlm("../data/inference/parameters.csv", Optim.minimizer(result), ',');
+CSV.write("../data/inference/fitted_exp57-58-59.csv", innerjoin(DMSO_est, TMZ10_est, TMZ500_est; on = :step));
+writedlm("../data/inference/parameters_57-58-59.csv", Optim.minimizer(result), ',');
