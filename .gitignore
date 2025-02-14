@@ -539,3 +539,8 @@ Temporary Items
 *.icloud
 
 # End of https://www.toptal.com/developers/gitignore/api/julia,jupyternotebooks,latex,macos
+
+
+
+# Exclude mastdon files (too large)
+.mastodon
