@@ -1,43 +1,29 @@
-# Summary
-
-This respository contains data and code related to the paper [Phenotypic heterogeneity in cancer chemotherapy](https://www.biorxiv.org/content/10.1101/2024.05.28.596108v1)
+# Content 
+This respository contains data and code related to the publication [A quantitative characterization of the heterogeneous response of glioblastoma U-87 MG cell line to temozolomide](https://www.biorxiv.org/content/10.1101/2024.05.28.596108v1)
 The project main experiments consist of micrograph time-lapses where of cells (potentially different cell lines) grown under different conditions (for instance using increasing drug doses) in 96-well plates.
 The output data was consists mostly in statistical observables obtained from those time-lapses. The code and minimal input data (mostly tracks and cell outline segmentation) required to reproduce this data and the plots is provided here.
 
 
-# Structure of the repository
+## Structure of the repository
 The data and code is organised as follows:
-- `figures`: contains all figures from the paper as fig_xx.svg
-  - `figures/plots`: contains all plots required to generate the figures
-- data pertains to all types of data required to generate the plots, this can be experimental or intermediate (e.g. processed), eg: 
-  - `data/type_of_experiment_1/intermediate_data_file{.xml|.csv|npy|etc}`
-  - `data/type_of_experiment_1/intermediate_data_file{.xml|.csv|npy|etc}`
-- `analysis` contains the one notebook per figure, eg: `analysis/fig1.ipynb` contains the code for fig 1.
+- `figures/` contains all figures from the paper as fig_xx.svg
+    * `figures/plots`: contains plots required to generate the figures
+- `data/` Data pertains to all types of data required to generate the plots, this can be experimental or intermediate with the following convention: `data/type_of_experiment_1/condition/intermediate_data_file{.xml|.csv|npy|etc}`
+  for instance `data/transfection/2/10um/fluo_B4.bin` relates to the second transfection experiment, 10uM TMZ drug and contains the preprocssed fluorescence data.
+- `figures/` contains notebooks for all the figures.
 - `analysis/utils/`  routines that are called by each of the figure notebooks have been outsourced there
 
 
 ## Tracking analysis
 
-Manual tracking was performed using trackmate [1] on specific experiments and wells, with or without fluorescence imaging. Associated to the actual images a detailed analysis allows to obtain information on motility, correlation between speed, division or fluorescence and so forth.
-The notebook to be run is located in [the analysis folder](analysis/generate_figures.ipynb)
+Manual tracking was performed using trackmate [1] and Mastodon  (https://mastodon.readthedocs.io)  on specific experiments and wells, with or without fluorescence imaging. Tracks can be downloaded separately by downloading the release `revision tracks` on github. 
 
 ## Segmentation
 
-Experiment #1 was segmented using PointRend [2] using a model trained on U-87MG cells. Fluorescence data extracted fron tracks was processed with Segment anything [3] using the weights from micro-sam [4]. The notebook that is required is in [the Segmentation folder](Segmentation/segmentation.ipynb)
-Currently running the processing pipeline depends on installing [detectron2](https://detectron2.readthedocs.io/).
+Most experiments were segmented using Cellpose. Fluorescence data was extracted from tracks that were generate by Mastodon/trackmate  either fully manually or by using the linking on label images except for files from `transfection/1` which were segmented with Segment anything [2] using the weights from micro-sam [3].
 
+## Simulations
 
-[1] Ershov, D., Phan, M.-S., Pylvänäinen, J. W., Rigaud, S. U., Le Blanc, L., Charles-Orszag, A., … Tinevez, J.-Y. (2022). TrackMate 7: integrating state-of-the-art segmentation algorithms into tracking pipelines. Nature Methods, 19(7), 829–832. doi:10.1038/s41592-022-01507-1
-
-[2] Kirillov, Alexander, Yuxin Wu, Kaiming He, and Ross Girshick. “PointRend: Image Segmentation as Rendering.” arXiv, February 16, 2020. https://doi.org/10.48550/arXiv.1912.08193.
-
-[3] Kirillov, Alexander, Eric Mintun, Nikhila Ravi, Hanzi Mao, Chloe Rolland, Laura Gustafson, Tete Xiao, et al. “Segment Anything.” arXiv, April 5, 2023. https://doi.org/10.48550/arXiv.2304.02643.
-
-[4] Archit, Anwai, et al. Segment Anything for Microscopy. 22 Aug. 2023. Bioinformatics, https://doi.org/10.1101/2023.08.21.554208.
-
-
-
-## How to run the simulations
 This repository uses python and julia. We recommend [`miniforge`](https://github.com/conda-forge/miniforge) for python and [`juliaup`](https://github.com/JuliaLang/juliaup) for julia. Please find the installation instruction on their respective GitHub repo and documentation. You will need a software to view and run jupyter notebooks. We recommend [VS Code](https://code.visualstudio.com/docs/datascience/jupyter-notebooks).
 
 After the install follow these steps:
@@ -70,3 +56,14 @@ After the install follow these steps:
   - `cd simulations`
   - `julia --project=.. inference.jl` (~5 min)
   - then run `analyze_exp33PD.ipynb` in VS Code.
+
+
+
+# References 
+
+[1] Ershov, D., Phan, M.-S., Pylvänäinen, J. W., Rigaud, S. U., Le Blanc, L., Charles-Orszag, A., … Tinevez, J.-Y. (2022). TrackMate 7: integrating state-of-the-art segmentation algorithms into tracking pipelines. Nature Methods, 19(7), 829–832. doi:10.1038/s41592-022-01507-1
+
+[2] Kirillov, Alexander, Eric Mintun, Nikhila Ravi, Hanzi Mao, Chloe Rolland, Laura Gustafson, Tete Xiao, et al. “Segment Anything.” arXiv, April 5, 2023. https://doi.org/10.48550/arXiv.2304.02643.
+
+[3] Archit, Anwai, et al. Segment Anything for Microscopy. 22 Aug. 2023. Bioinformatics, https://doi.org/10.1101/2023.08.21.554208.
+
