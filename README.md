@@ -20,7 +20,10 @@ Manual tracking was performed using trackmate [1] and Mastodon  (https://mastodo
 
 ## Segmentation
 
-Most experiments were segmented using Cellpose. Fluorescence data was extracted from tracks that were generate by Mastodon/trackmate  either fully manually or by using the linking on label images except for files from `transfection/1` which were segmented with Segment anything [2] using the weights from micro-sam [3].
+Most experiments were segmented using Cellpose.
+
+## Tracking
+Fluorescence data was extracted from tracks that were generate by Mastodon/trackmate  either fully manually or by using the LAP tracker on spots generated from Cellpose label images.
 
 ## Simulations
 
@@ -62,8 +65,4 @@ After the install follow these steps:
 # References 
 
 [1] Ershov, D., Phan, M.-S., Pylvänäinen, J. W., Rigaud, S. U., Le Blanc, L., Charles-Orszag, A., … Tinevez, J.-Y. (2022). TrackMate 7: integrating state-of-the-art segmentation algorithms into tracking pipelines. Nature Methods, 19(7), 829–832. doi:10.1038/s41592-022-01507-1
-
-[2] Kirillov, Alexander, Eric Mintun, Nikhila Ravi, Hanzi Mao, Chloe Rolland, Laura Gustafson, Tete Xiao, et al. “Segment Anything.” arXiv, April 5, 2023. https://doi.org/10.48550/arXiv.2304.02643.
-
-[3] Archit, Anwai, et al. Segment Anything for Microscopy. 22 Aug. 2023. Bioinformatics, https://doi.org/10.1101/2023.08.21.554208.
 
